@@ -1,0 +1,44 @@
+package _Self.buildTypes
+
+import jetbrains.buildServer.configs.kotlin.v2019_2.*
+import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.dockerCommand
+import jetbrains.buildServer.configs.kotlin.v2019_2.triggers.vcs
+
+object BuildDockerContainer : BuildType({
+    name = "BuildDockerContainer"
+
+    params {
+        param("auth_token", "<Токен для вызова REST API>")
+        param("env.container_name", "test-development-%build.number%")
+        param("env.image_name", "jet/test:development-%build.number%")
+    }
+
+    vcs {
+        root(<VCS с которого тянутся изменения>)
+    }
+
+    steps {
+        dockerCommand {
+            name = "Build docker image"
+            commandType = build {
+                source = file {
+                    path = "dockerfile"
+                }
+                namesAndTags = "%env.image_name%"
+            }
+            param("docker.sub.command", "run")
+        }
+        dockerCommand {
+            name = "Run test in container"
+            commandType = other {
+                subCommand = "run"
+                commandArgs = "-d --name %env.container_name%  -e TOKEN=%auth_token% -e CONTAINER_NAME=%env.container_name% --network=dockertestrun_teamcity-network %env.image_name%"
+            }
+        }
+    }
+
+    triggers {
+        vcs {
+        }
+    }
+})

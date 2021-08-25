@@ -1,0 +1,44 @@
+package _Self.buildTypes
+
+import jetbrains.buildServer.configs.kotlin.v2019_2.*
+import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.dockerCommand
+import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.script
+
+object GetResultContainer : BuildType({
+    name = "GetResultContainer"
+    description = "Получение результата из контейнера"
+
+    artifactRules = "%env.result_folder% => allure_result"
+
+    params {
+        param("env.container_name", "empty")
+        param("env.result_folder", "%env.container_name%_result")
+        param("env.image_tag", "empty")
+    }
+    steps {
+        dockerCommand {
+            name = "Get report from container"
+            commandType = other {
+                subCommand = "cp"
+                commandArgs = "%env.container_name%:/usr/src/app/allure_result ./%env.result_folder%"
+            }
+        }
+        script {
+            name = "Get image name"
+            scriptContent = """echo "##teamcity[setParameter name='env.image_tag' value='${'$'}( docker ps -a --format "{{.Image}}"  --filter="name=%env.container_name%")']""""
+        }
+        dockerCommand {
+            name = "Remove container"
+            commandType = other {
+                subCommand = "rm"
+                commandArgs = "-v %env.container_name%"
+            }
+        }
+        dockerCommand {
+            name = "Remove image"
+            commandType = other {
+                subCommand = "rmi"
+                commandArgs = "%env.image_tag%"
+            }
+        }
+    }})
